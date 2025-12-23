@@ -25,18 +25,6 @@ import VERADomain
 /// - Optional extensibility via the plugin system
 public final class VonageCall: CallFacade {
 
-    /// Errors that can occur during call operations.
-    ///
-    /// - SeeAlso: ``callState``, ``disconnect()``
-    enum Error: Swift.Error {
-        /// The call instance was unexpectedly deallocated during the disconnect process.
-        case selfMissingOnDisconnect
-        /// An attempt was made to disconnect a call that is not in the connected state.
-        ///
-        /// Ensure ``callState`` is ``CallState/connected`` before calling ``disconnect()``.
-        case callNotConnected
-    }
-
     private var cancellables = Set<AnyCancellable>()
     private let _participantsPublisher = CurrentValueSubject<ParticipantsState, Never>(ParticipantsState.empty)
 
@@ -155,6 +143,15 @@ public final class VonageCall: CallFacade {
         }
         session.onSessionFailure = { [weak self] error in
             self?.sessionDidFail(error)
+        }
+        session.onSessionDidDisconnect = { [weak self] in
+            self?.sessionDidDisconnect()
+        }
+        session.onSessionDidBeginReconnecting = { [weak self] in
+            self?.sessionDidBeginReconnecting()
+        }
+        session.onSessionDidReconnect = { [weak self] in
+            self?.sessionDidReconnect()
         }
         session.onSessionDidConnect = { [weak self] in
             self?.updateCallState(to: .connected)
@@ -322,8 +319,8 @@ public final class VonageCall: CallFacade {
     /// - Important: Cancels Combine subscriptions and clears plugin assignments as part of teardown.
     public func disconnect() async throws {
         guard _callState.value == .connected else {
-            _eventsPublisher.value = .error(Error.callNotConnected)
-            throw Error.callNotConnected
+            _eventsPublisher.value = .error(CallError.callNotConnected)
+            throw CallError.callNotConnected
         }
         _callState.value = .disconnecting
 
@@ -347,7 +344,19 @@ public final class VonageCall: CallFacade {
     }
 
     private func sessionDidFail(_ error: Swift.Error) {
-        _eventsPublisher.send(.error(error))
+        _eventsPublisher.send(.sessionFailure(error))
+    }
+
+    private func sessionDidDisconnect() {
+        _eventsPublisher.send(.disconnected)
+    }
+
+    private func sessionDidBeginReconnecting() {
+        _eventsPublisher.send(.didBeginReconnecting)
+    }
+
+    private func sessionDidReconnect() {
+        _eventsPublisher.send(.didReconnect)
     }
 
     // MARK: Audio/Video toggles

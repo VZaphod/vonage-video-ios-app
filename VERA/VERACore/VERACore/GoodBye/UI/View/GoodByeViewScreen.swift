@@ -3,33 +3,21 @@
 //
 
 import SwiftUI
+import VERACommonUI
+import VERADomain
 
 struct GoodByeViewScreen: View {
     @ObservedObject var viewModel: GoodByeViewModel
-    public let onReenter: () -> Void
-    public let onReturnToLanding: () -> Void
 
-    public init(
-        viewModel: GoodByeViewModel,
-        onReenter: @escaping () -> Void,
-        onReturnToLanding: @escaping () -> Void
-    ) {
+    public init(viewModel: GoodByeViewModel) {
         self.viewModel = viewModel
-        self.onReenter = onReenter
-        self.onReturnToLanding = onReturnToLanding
     }
 
     var body: some View {
         GoodByeView(
             archives: viewModel.archives,
-            onReenter: onReenter,
-            onReturnToLanding: onReturnToLanding
-        ).alert(item: $viewModel.error) { alertItem in
-            Alert(
-                title: Text(alertItem.title),
-                message: Text(alertItem.message),
-                dismissButton: .default(Text("OK"))
-            )
-        }
+            onReenter: viewModel.onReenter,
+            onReturnToLanding: viewModel.onReturnToLanding
+        ).alert(item: $viewModel.error) { $0.view }
     }
 }

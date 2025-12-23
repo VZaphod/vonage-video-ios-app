@@ -12,6 +12,22 @@ public enum MeetingRoomViewState: Equatable {
     case content(MeetingRoomState)
 }
 
+public struct MeetingRoomNavigation {
+    public let onBack: () -> Void
+    public let onShowChat: () -> Void
+    public let onNext: () -> Void
+
+    public init(
+        onBack: @escaping () -> Void,
+        onShowChat: @escaping () -> Void,
+        onNext: @escaping () -> Void
+    ) {
+        self.onBack = onBack
+        self.onShowChat = onShowChat
+        self.onNext = onNext
+    }
+}
+
 public final class MeetingRoomViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let connectToRoomUseCase: ConnectToRoomUseCase
@@ -21,9 +37,13 @@ public final class MeetingRoomViewModel: ObservableObject {
     private let checkCameraAuthorizationStatusUseCase: CheckCameraAuthorizationStatusUseCase
     private let requestMicrophonePermissionUseCase: RequestMicrophonePermissionUseCase
     private let requestCameraPermissionUseCase: RequestCameraPermissionUseCase
+    private let appConfig: AppConfig
+    private let meetingRoomNavigation: MeetingRoomNavigation
 
     @MainActor @Published public var state: MeetingRoomViewState = .loading
     @MainActor @Published public var error: AlertItem?
+    @MainActor @Published public var toast: ToastItem?
+
     private let layoutPublisher = CurrentValueSubject<MeetingRoomLayout, Never>(MeetingRoomLayout.activeSpeaker)
     private let sessionStatePublisher = CurrentValueSubject<SessionState, Never>(SessionState.initial)
     private let callStatePublisher = CurrentValueSubject<CallState, Never>(CallState.idle)
@@ -33,7 +53,7 @@ public final class MeetingRoomViewModel: ObservableObject {
     public let roomName: RoomName
     public let baseURL: URL
     private var initialised = false
-    private let appConfig: AppConfig
+    private static let disconnectionTimeoutInNanoseconds: UInt64 = 1_000_000_000 * 6
 
     public init(
         roomName: RoomName,
@@ -45,7 +65,8 @@ public final class MeetingRoomViewModel: ObservableObject {
         requestMicrophonePermissionUseCase: RequestMicrophonePermissionUseCase,
         requestCameraPermissionUseCase: RequestCameraPermissionUseCase,
         currentCallParticipantsRepository: CurrentCallParticipantsRepository,
-        appConfig: AppConfig
+        appConfig: AppConfig,
+        meetingRoomNavigation: MeetingRoomNavigation
     ) {
         self.roomName = roomName
         self.baseURL = baseURL
@@ -57,6 +78,7 @@ public final class MeetingRoomViewModel: ObservableObject {
         self.requestCameraPermissionUseCase = requestCameraPermissionUseCase
         self.currentCallParticipantsRepository = currentCallParticipantsRepository
         self.appConfig = appConfig
+        self.meetingRoomNavigation = meetingRoomNavigation
     }
 
     public func loadUI() {
@@ -79,15 +101,60 @@ public final class MeetingRoomViewModel: ObservableObject {
                 call.callState
                     .sink { [weak self] callState in
                         self?.callStatePublisher.send(callState)
+                        self?.navigateBackIfNeeded(callState)
+                    }
+                    .store(in: &cancellables)
+
+                call.eventsPublisher
+                    .sink { [weak self] event in
+                        Task { @MainActor in
+                            switch event {
+                            case .didBeginReconnecting:
+                                self?.toast =
+                                    .init(message: "Session did drop, started reconnection", mode: .warning)
+                            case .didReconnect:
+                                self?.toast =
+                                    .init(message: "Session did reconnect", mode: .info)
+                            case .error(let error):
+                                self?.toast =
+                                    .init(message: error.localizedDescription, mode: .failure)
+                            case .sessionFailure(let error):
+                                self?.toast =
+                                    .init(message: error.localizedDescription, mode: .failure)
+
+                            case .disconnected:
+                                self?.toast =
+                                    .init(message: "Session did disconnect", mode: .failure)
+
+                                Task { [weak self] in
+                                    try? await Task.sleep(
+                                        nanoseconds: MeetingRoomViewModel.disconnectionTimeoutInNanoseconds)
+                                    try? await self?.disconnectRoomUseCase()
+                                }
+                            default:
+                                break
+                            }
+                        }
                     }
                     .store(in: &cancellables)
 
                 self.currentCall = call
             } catch {
                 await MainActor.run { [weak self] in
-                    self?.error = AlertItem.genericError(error.localizedDescription)
+                    self?.error = AlertItem.genericError(
+                        error.localizedDescription
+                    ) { [weak self] in
+                        self?.meetingRoomNavigation.onBack()
+                    }
                 }
             }
+        }
+    }
+
+    func navigateBackIfNeeded(_ callState: CallState) {
+        guard callState == .disconnected else { return }
+        Task { @MainActor [weak self] in
+            self?.meetingRoomNavigation.onNext()
         }
     }
 
@@ -187,11 +254,17 @@ public final class MeetingRoomViewModel: ObservableObject {
         Task { @MainActor [weak self] in
             do {
                 try await self?.disconnectRoomUseCase()
+            } catch CallError.callNotConnected {
+                // Wait until the call connects instead of showing an error
             } catch {
                 await MainActor.run { [weak self] in
                     self?.error = AlertItem.genericError(error.localizedDescription)
                 }
             }
         }
+    }
+
+    public func showChat() {
+        meetingRoomNavigation.onShowChat()
     }
 }

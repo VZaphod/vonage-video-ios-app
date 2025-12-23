@@ -4,17 +4,16 @@
 
 import Combine
 import SwiftUI
+import VERACommonUI
+import VERADomain
 
 public struct WaitingRoomScreen: View {
     @ObservedObject private var viewModel: WaitingRoomViewModel
-    private let onNavigateToRoom: (RoomName) -> Void
 
     public init(
-        viewModel: WaitingRoomViewModel,
-        onNavigateToRoom: @escaping (RoomName) -> Void
+        viewModel: WaitingRoomViewModel
     ) {
         self.viewModel = viewModel
-        self.onNavigateToRoom = onNavigateToRoom
     }
 
     public var body: some View {
@@ -26,9 +25,6 @@ public struct WaitingRoomScreen: View {
             ) {
                 Task {
                     await viewModel.joinRoom()
-                    await MainActor.run {
-                        onNavigateToRoom(state.roomName)
-                    }
                 }
             } onMicrophoneToggle: {
                 viewModel.onMicToggle()
@@ -37,15 +33,11 @@ public struct WaitingRoomScreen: View {
             }
             .task {
                 await viewModel.checkPermissions()
-            }.onAppear {
-                viewModel.loadUI()
-            }.alert(item: $viewModel.error) { alertItem in
-                Alert(
-                    title: Text(alertItem.title),
-                    message: Text(alertItem.message),
-                    dismissButton: .default(Text("OK"))
-                )
             }
+            .onAppear {
+                viewModel.loadUI()
+            }
+            .alert(item: $viewModel.error) { $0.view }
         case .loading: Text("Loading", bundle: .veraCore)
         }
     }
