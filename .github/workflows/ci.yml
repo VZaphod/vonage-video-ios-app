@@ -69,7 +69,7 @@ jobs:
     - name: Export build flags
       run: |
         {
-          echo 'XCODE_COMMON_FLAGS=COMPILER_INDEX_STORE_ENABLE=NO ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO'
+          echo 'XCODE_COMMON_FLAGS=COMPILER_INDEX_STORE_ENABLE=NO ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO RUN_SWIFTLINT=NO'
         } >> $GITHUB_ENV
 
     - name: Run VERACoreTests (macOS)
@@ -96,6 +96,19 @@ jobs:
           -derivedDataPath DerivedData \
           -enableCodeCoverage YES \
           -resultBundlePath DerivedData/VERAChatTests-macOS.xcresult \
+          $XCODE_COMMON_FLAGS | xcpretty
+
+    - name: Run VERAArchivingTests (macOS)
+      id: archiving-tests-macos
+      run: |
+        echo "🧪 Running VERAArchivingTests on macOS"
+        xcodebuild test \
+          -workspace VERA/VERA.xcworkspace \
+          -scheme VERAArchivingTests \
+          -destination "platform=macOS" \
+          -derivedDataPath DerivedData \
+          -enableCodeCoverage YES \
+          -resultBundlePath DerivedData/VERAArchivingTests-macOS.xcresult \
           $XCODE_COMMON_FLAGS | xcpretty
 
     - name: Preboot iOS Simulator
@@ -263,6 +276,7 @@ jobs:
         path: |
           DerivedData/VERACoreTests-macOS.xcresult
           DerivedData/VERAChatTests-macOS.xcresult
+          DerivedData/VERAArchivingTests-macOS.xcresult
           DerivedData/VERAVonageChatPluginTests-macOS.xcresult
           DerivedData/VERAVonageTests-iOS.xcresult
           DerivedData/VERACoreSnapshotTests-iOS.xcresult

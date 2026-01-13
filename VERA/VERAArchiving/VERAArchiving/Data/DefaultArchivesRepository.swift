@@ -4,11 +4,11 @@
 
 import Combine
 import Foundation
-import VERACore
+import VERADomain
 
 public final class DefaultArchivesRepository: ArchivesRepository {
     private let archivesDataSource: ArchivesDataSource
-    private var cache: [String: CurrentValueSubject<[VERACore.Archive], Error>] = [:]
+    private var cache: [String: CurrentValueSubject<[Archive], Error>] = [:]
     private var pollingTasks: [String: Task<Void, Never>] = [:]
     private let pollingInterval: TimeInterval
 
@@ -21,8 +21,8 @@ public final class DefaultArchivesRepository: ArchivesRepository {
     }
 
     public func getArchives(
-        roomName: VERACore.RoomName
-    ) -> AnyPublisher<[VERACore.Archive], Error> {
+        roomName: RoomName
+    ) -> AnyPublisher<[Archive], Error> {
         let publisher = getPublisher(roomName: roomName)
 
         // Start polling
@@ -32,8 +32,8 @@ public final class DefaultArchivesRepository: ArchivesRepository {
     }
 
     private func startPolling(
-        for roomName: VERACore.RoomName,
-        publisher: CurrentValueSubject<[VERACore.Archive], Error>
+        for roomName: RoomName,
+        publisher: CurrentValueSubject<[Archive], Error>
     ) {
         // Cancel any existing polling task for this room
         pollingTasks[roomName]?.cancel()
@@ -50,7 +50,7 @@ public final class DefaultArchivesRepository: ArchivesRepository {
 
                     // Stop polling if all archives are available or if any failed
                     if shouldStopPolling(archives) {
-                        pollingTasks[roomName] = nil
+                        pollingTasks.removeValue(forKey: roomName)
                         return
                     }
 
@@ -69,7 +69,7 @@ public final class DefaultArchivesRepository: ArchivesRepository {
         pollingTasks[roomName] = task
     }
 
-    private func shouldStopPolling(_ archives: [VERACore.Archive]) -> Bool {
+    private func shouldStopPolling(_ archives: [Archive]) -> Bool {
         guard !archives.isEmpty else { return true }
 
         // Stop if any archive failed (they won't become available)
@@ -82,60 +82,13 @@ public final class DefaultArchivesRepository: ArchivesRepository {
     }
 
     private func getPublisher(
-        roomName: VERACore.RoomName
-    ) -> CurrentValueSubject<[VERACore.Archive], Error> {
+        roomName: RoomName
+    ) -> CurrentValueSubject<[Archive], Error> {
         if let publisher = cache[roomName] {
             return publisher
         }
-        let publisher = CurrentValueSubject<[VERACore.Archive], Error>([])
+        let publisher = CurrentValueSubject<[Archive], Error>([])
         cache[roomName] = publisher
         return publisher
-    }
-}
-
-public struct RemoteArchivesResponse: Decodable {
-    public let archives: [RemoteArchive]
-    public let status: Int
-}
-
-public struct RemoteArchive: Decodable {
-    public let id: String
-    public let status: String
-    public let name: String
-    public let reason: String?
-    public let sessionId: String
-    public let applicationId: String
-    public let createdAt: TimeInterval
-    public let size: Int
-    public let duration: Int
-    public let outputMode: String
-    public let streamMode: String
-    public let hasAudio: Bool
-    public let hasVideo: Bool
-    public let hasTranscription: Bool
-    public let sha256sum: String
-    public let password: String
-    public let updatedAt: TimeInterval
-    public let multiArchiveTag: String
-    public let event: String
-    public let resolution: String
-    public let url: String?
-
-    var toDomain: VERACore.Archive? {
-        guard let uuid = UUID(uuidString: id) else {
-            return nil
-        }
-        return .init(
-            id: uuid,
-            name: name,
-            createdAt: Date(timeIntervalSince1970: createdAt),
-            status: ArchiveStatus(value: status),
-            url: url?.toURL)
-    }
-}
-
-extension String {
-    var toURL: URL? {
-        URL(string: self)
     }
 }

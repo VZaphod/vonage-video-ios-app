@@ -13,6 +13,10 @@ import VERAVonage
     import VERAChat
 #endif
 
+#if ARCHIVING_ENABLED
+    import VERAArchiving
+#endif
+
 @main
 struct VERAApp: App {
     @StateObject var navigationCoordinator = NavigationCoordinator()
@@ -77,8 +81,13 @@ struct VERAApp: App {
     var waitingRoomFactory: WaitingRoomFactory { dependencyContainer.waitingRoomFactory }
     var meetingRoomFactory: MeetingRoomFactory { dependencyContainer.meetingRoomFactory }
     var goodByePageFactory: GoodByePageFactory { dependencyContainer.goodByePageFactory }
+
     #if CHAT_ENABLED
         var chatFactory: ChatFactory { dependencyContainer.chatFactory }
+    #endif
+
+    #if ARCHIVING_ENABLED
+        var archiveFactory: ArchivingFactory { dependencyContainer.archivingFactory }
     #endif
 
     private func makeLandingPage() -> some View {
@@ -159,15 +168,26 @@ struct VERAApp: App {
                 navigationCoordinator.go(to: .waitingRoom(roomName))
             } onReturnToLanding: {
                 navigationCoordinator.go(to: .landing)
-            } onPlay: { _ in
+            } additionalContentView: {
+                makeGoodbyeAdditionalContentView(roomName: roomName)
             }
 
             navigationCoordinator.goodByeViewModel = newViewModel
             viewModel = newViewModel
         }
 
-        return goodByePageFactory.make(viewModel: viewModel)
-            .navigationBarHidden(true)
+        return goodByePageFactory.make(viewModel: viewModel) {
+            makeGoodbyeAdditionalContentView(roomName: roomName)
+        }
+        .navigationBarHidden(true)
+    }
+
+    func makeGoodbyeAdditionalContentView(roomName: RoomName) -> some View {
+        #if ARCHIVING_ENABLED
+            return archiveFactory.make(roomName: roomName).view
+        #else
+            return EmptyView()
+        #endif
     }
 
     #if CHAT_ENABLED

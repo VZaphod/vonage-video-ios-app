@@ -4,9 +4,10 @@
 
 import Foundation
 import Testing
+import VERAArchiving
 import VERACore
+import VERADomain
 import VERATestHelpers
-import VERAVonage
 
 @Suite("Default archive recordings repository tests")
 struct DefaultArchiveRecordingsRepositoryTests {
