@@ -200,6 +200,7 @@ struct VERAApp: App {
             } onNext: {
                 navigationCoordinator.go(to: .goodbye(roomName))
             }
+            newViewModel.extraTopTrailingButtons = MeetingRoomTopTrailingButtons.topTrailingButtons
 
             navigationCoordinator.meetingRoomViewModel = newViewModel
             #if ARCHIVING_ENABLED
