@@ -78,6 +78,18 @@ public struct MeetingRoomView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 0) {
+                        if state.archivingState.isArchiving {
+                            recordingIndicator
+                        }
+                        Spacer()
+                    }
+                    .padding(.leading, 16)
+                    Spacer()
+                }
+                .allowsHitTesting(false)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(.black)
@@ -148,10 +160,6 @@ public struct MeetingRoomView: View {
 
     @ViewBuilder
     private var toolbarContent: some View {
-        if state.archivingState.isArchiving {
-            recordingIndicator
-        }
-
         if !isIosAppOnMac && state.allowCameraControl {
             cameraSwitchButton
         }
@@ -170,10 +178,9 @@ public struct MeetingRoomView: View {
             Image(systemName: "record.circle")
                 .resizable()
                 .frame(width: 20, height: 20)
-                .foregroundStyle(.red)
+                .foregroundStyle(VERACommonUIAsset.SemanticColors.error.swiftUIColor)
                 .pulsating(pulseFraction: 1.1, durationSeconds: 0.6)
         }
-        .frame(width: 30, height: 30, alignment: .center)
     }
 
     private var cameraSwitchButton: some View {
