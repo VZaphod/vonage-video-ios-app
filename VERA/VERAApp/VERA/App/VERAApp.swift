@@ -2,6 +2,7 @@
 //  Created by Vonage on 4/7/25.
 //
 
+import Combine
 import Foundation
 import SwiftUI
 import VERACommonUI
@@ -19,6 +20,10 @@ import VERAVonage
 
 #if BACKGROUND_EFFECTS_ENABLED
     import VERABackgroundEffects
+#endif
+
+#if CAPTIONS_ENABLED
+    import VERACaptions
 #endif
 
 #if REACTIONS_ENABLED
@@ -52,9 +57,23 @@ struct VERAApp: App {
             navigator: navigationCoordinator)
     }
 
+    #if CAPTIONS_ENABLED
+        private var captionsStatePublisher: AnyPublisher<CaptionsState, Never> {
+            navigationCoordinator.captionsButtonViewModel?.$state
+                .eraseToAnyPublisher() ?? Empty().eraseToAnyPublisher()
+        }
+
+        private var captionsToastPublisher: AnyPublisher<ToastItem, Never> {
+            navigationCoordinator.captionsButtonViewModel?.$toast
+                .compactMap { $0 }
+                .eraseToAnyPublisher() ?? Empty().eraseToAnyPublisher()
+        }
+    #endif
+
     @State private var previousPath = NavigationPath()
     @State private var showChat = false
     @State private var showPickerView = false
+    @State private var showCaptions = false
 
     var body: some Scene {
         WindowGroup {
@@ -84,19 +103,19 @@ struct VERAApp: App {
                     makeMeetingRoom(roomName: currentRoom)
                         .onDisappear {
                             dependencyContainer.publisherRepository.resetPublisher()
-
                             #if ARCHIVING_ENABLED
                                 Task {
                                     await navigationCoordinator.archivesViewModel?.loadData()
                                 }
                             #endif
                         }
-                        .alert(item: $navigationCoordinator.alertItem) { $0.view }
+
                         #if CHAT_ENABLED
                             .sheet(isPresented: $showChat) {
                                 makeChatView()
                             }
                         #endif
+
                         #if REACTIONS_ENABLED
                             .dismissibleOverlay(
                                 isPresented: $showPickerView,
@@ -107,6 +126,23 @@ struct VERAApp: App {
                             }
                             .overlay {
                                 makeFloatingEmojisOverlay()
+                            }
+                        #endif
+
+                        #if CAPTIONS_ENABLED
+                            .onReceive(captionsStatePublisher) { state in
+                                showCaptions = state.captionsEnabled
+                            }
+                            .onReceive(captionsToastPublisher) { toast in
+                                navigationCoordinator.meetingRoomViewModel?.toast = toast
+                            }
+                            .dismissibleOverlay(
+                                isPresented: $showCaptions,
+                                alignment: .bottom,
+                                edgePadding: VERAAppConstants.overlayBottomPadding,
+                                allowsHitTesting: false
+                            ) {
+                                makeCaptionsView()
                             }
                         #endif
                 }
@@ -137,6 +173,10 @@ struct VERAApp: App {
 
     #if BACKGROUND_EFFECTS_ENABLED
         var backgroundBlurFactory: BackgroundBlurFactory { dependencyContainer.backgroundBlurFactory }
+    #endif
+
+    #if CAPTIONS_ENABLED
+        var captionsFactory: CaptionsFactory { dependencyContainer.captionsFactory }
     #endif
 
     private func makeLandingPage() -> some View {
@@ -206,7 +246,6 @@ struct VERAApp: App {
             viewModel = existingViewModel
         } else {
             #if BACKGROUND_EFFECTS_ENABLED
-
                 // Copy the current blur level from the waiting room
                 // and apply it to the meeting room blur view model
                 // the publisher repositories are different
@@ -247,8 +286,19 @@ struct VERAApp: App {
                     }
                 }
             )
+
+            #if CAPTIONS_ENABLED
+                let (_, captionsButtonViewModel) = captionsFactory.makeCaptionsButton(roomName: roomName)
+                captionsButtonViewModel.setup()
+                navigationCoordinator.captionsButtonViewModel = captionsButtonViewModel
+
+                let (_, captionsViewModel) = captionsFactory.makeCaptionsView()
+                navigationCoordinator.captionsViewModel = captionsViewModel
+            #endif
+
             newViewModel.extraTopTrailingButtons = MeetingRoomTopTrailingButtons.topTrailingButtons
             navigationCoordinator.meetingRoomViewModel = newViewModel
+
             #if ARCHIVING_ENABLED
                 navigationCoordinator.archiveButtonViewModel = archiveButtonViewModel
             #endif
@@ -259,6 +309,7 @@ struct VERAApp: App {
                 navigationCoordinator.floatingEmojisOverlayViewModel =
                     dependencyContainer.reactionsFactory.makeFloatingEmojisOverlay().viewModel
             #endif
+
             viewModel = newViewModel
         }
 
@@ -296,6 +347,12 @@ struct VERAApp: App {
             }
         #endif
 
+        #if CAPTIONS_ENABLED
+            if let captionsButtonViewModel = navigationCoordinator.captionsButtonViewModel {
+                extraButtons.append(dependencyContainer.makeCaptionsButton(captionsButtonViewModel))
+            }
+        #endif
+
         #if REACTIONS_ENABLED
             if let viewModel = navigationCoordinator.emojiButtonContainerViewModel {
                 extraButtons.append(
@@ -304,10 +361,7 @@ struct VERAApp: App {
                     }
                 )
             }
-
-
         #endif
-
         return extraButtons
     }
 
@@ -380,6 +434,15 @@ struct VERAApp: App {
         private func makeFloatingEmojisOverlay() -> some View {
             if let viewModel = navigationCoordinator.floatingEmojisOverlayViewModel {
                 FloatingEmojisOverlayView(viewModel: viewModel)
+            }
+        }
+    #endif
+
+    #if CAPTIONS_ENABLED
+        @ViewBuilder
+        private func makeCaptionsView() -> some View {
+            if let captionsViewModel = navigationCoordinator.captionsViewModel {
+                captionsFactory.makeCaptionsView(viewModel: captionsViewModel)
             }
         }
     #endif

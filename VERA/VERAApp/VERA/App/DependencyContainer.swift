@@ -24,6 +24,11 @@ import VERAVonageCallKitPlugin
     import VERABackgroundEffects
 #endif
 
+#if CAPTIONS_ENABLED
+    import VERACaptions
+    import VERAVonageCaptionsPlugin
+#endif
+
 #if REACTIONS_ENABLED
     import VERAReactions
     import VERAVonageReactionsPlugin
@@ -75,7 +80,8 @@ final class DependencyContainer {
         currentCallParticipantsRepository: currentCallParticipantsRepository,
         sessionRepository: sessionRepository,
         publisherRepository: publisherRepository,
-        roomCredentialsRepository: roomCredentialsRepository)
+        roomCredentialsRepository: roomCredentialsRepository,
+        captionsStatusDataSource: captionsStatusDataSource)
 
     lazy var goodByePageFactory = GoodByePageFactory(
         joinRoomUseCase: .init(
@@ -102,6 +108,9 @@ final class DependencyContainer {
         #endif
         #if ARCHIVING_ENABLED
             registry.registerPlugin(plugin: vonageArchivingPlugin)
+        #endif
+        #if CAPTIONS_ENABLED
+            registry.registerPlugin(plugin: captionsPlugin)
         #endif
         #if REACTIONS_ENABLED
             registry.registerPlugin(plugin: vonageReactionsPlugin)
@@ -177,6 +186,32 @@ final class DependencyContainer {
 
     #endif
 
+    // MARK: Captions
+
+    #if CAPTIONS_ENABLED
+
+        lazy var captionsActivationDataSource: CaptionsActivationDataSource = DefaultCaptionsDataSource(
+            baseURL: baseURL, httpClient: httpClient, jsonDecoder: jsonDecoder)
+
+        lazy var captionsStatusDataSource: CaptionsStatusDataSource = DefaultCaptionsStatusDataSource()
+
+        lazy var captionsRepository: CaptionsRepository = DefaultCaptionsRepository()
+
+        lazy var captionsFactory = CaptionsFactory(
+            captionsActivationDataSource: captionsActivationDataSource,
+            captionsStatusDataSource: captionsStatusDataSource,
+            captionsRepository: captionsRepository)
+
+        lazy var captionsPlugin: VonageCaptionsPlugin = {
+            let plugin = VonageCaptionsPlugin(
+                captionsStatusDataSource: captionsStatusDataSource,
+                captionsRepository: captionsRepository)
+            return plugin
+        }()
+    #else
+        lazy var captionsStatusDataSource: CaptionsStatusDataSource = NullCaptionsStatusDataSource()
+    #endif
+
     // MARK: Reactions feature
 
     #if REACTIONS_ENABLED
@@ -191,6 +226,5 @@ final class DependencyContainer {
         lazy var reactionsFactory = ReactionsFactory(
             reactionsRepository: reactionsRepository,
             sendReactionUseCase: sendReactionUseCase)
-
     #endif
 }

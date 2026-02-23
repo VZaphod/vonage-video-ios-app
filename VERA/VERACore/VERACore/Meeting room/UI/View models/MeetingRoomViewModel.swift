@@ -20,6 +20,14 @@ public struct MeetingRoomButtonsState {
     }
 }
 
+public struct MeetingRoomOverlayState {
+    public let captions: [CaptionItem]
+
+    public init(captions: [CaptionItem]) {
+        self.captions = captions
+    }
+}
+
 public final class MeetingRoomViewModel: ObservableObject {
 
     private static let disconnectionTimeoutInSeconds = 6
@@ -32,6 +40,7 @@ public final class MeetingRoomViewModel: ObservableObject {
     private let checkCameraAuthorizationStatusUseCase: CheckCameraAuthorizationStatusUseCase
     private let appConfig: AppConfig
     private let meetingRoomNavigation: MeetingRoomDestination
+    private let captionsStatusDataSource: CaptionsStatusDataSource
 
     @MainActor @Published public var state: MeetingRoomViewState = .loading
     @MainActor @Published public var toast: ToastItem?
@@ -59,9 +68,10 @@ public final class MeetingRoomViewModel: ObservableObject {
         checkMicrophoneAuthorizationStatusUseCase: CheckMicrophoneAuthorizationStatusUseCase,
         checkCameraAuthorizationStatusUseCase: CheckCameraAuthorizationStatusUseCase,
         currentCallParticipantsRepository: CurrentCallParticipantsRepository,
+        captionsStatusDataSource: CaptionsStatusDataSource,
         appConfig: AppConfig,
         meetingRoomNavigation: MeetingRoomDestination,
-        getExternalButtons: @escaping (MeetingRoomButtonsState) -> [BottomBarButton]
+        getExternalButtons: @escaping (MeetingRoomButtonsState) -> [BottomBarButton],
     ) {
         self.roomName = roomName
         self.baseURL = baseURL
@@ -73,6 +83,7 @@ public final class MeetingRoomViewModel: ObservableObject {
         self.appConfig = appConfig
         self.meetingRoomNavigation = meetingRoomNavigation
         self.getExternalButtons = getExternalButtons
+        self.captionsStatusDataSource = captionsStatusDataSource
     }
 
     @MainActor
@@ -232,6 +243,14 @@ extension MeetingRoomViewModel {
                 }
                 .store(in: &cancellables)
 
+            captionsStatusDataSource.captionsState
+                .sink { state in
+                    Task { @MainActor [weak self] in
+                        self?.updateExtraButtons()
+                    }
+                }
+                .store(in: &cancellables)
+
             self.currentCall = call
         } catch {
             await MainActor.run { [weak self] in
@@ -289,7 +308,8 @@ extension MeetingRoomViewModel {
 
     @MainActor
     fileprivate func updateArchivingButtons() {
-        let archivingState = self.archivingPublisher.value
-        self.extraButtons = self.getExternalButtons(.init(archivingState: archivingState))
+        let archivingState = archivingPublisher.value
+        extraButtons = getExternalButtons(.init(archivingState: archivingState))
     }
+
 }

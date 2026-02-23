@@ -13,6 +13,10 @@ import os.log
     import VERABackgroundEffects
 #endif
 
+#if CAPTIONS_ENABLED
+    import VERACaptions
+#endif
+
 #if REACTIONS_ENABLED
     import VERAReactions
 #endif
@@ -35,6 +39,11 @@ open class NavigationCoordinator: ObservableObject, Navigator {
 
     #if BACKGROUND_EFFECTS_ENABLED
         var backgroundBlurButtonViewModel: BackgroundBlurButtonViewModel?
+    #endif
+
+    #if CAPTIONS_ENABLED
+        var captionsButtonViewModel: CaptionsButtonViewModel?
+        var captionsViewModel: CaptionsViewModel?
     #endif
 
     #if REACTIONS_ENABLED
@@ -98,6 +107,11 @@ open class NavigationCoordinator: ObservableObject, Navigator {
 
         #if BACKGROUND_EFFECTS_ENABLED
             backgroundBlurButtonViewModel = nil
+        #endif
+
+        #if CAPTIONS_ENABLED
+            captionsButtonViewModel = nil
+            captionsViewModel = nil
         #endif
 
         logNavigation("Returned to landing page")

@@ -170,7 +170,8 @@ private func createDependencies() -> [TargetDependency] {
 
     if areCaptionsEnabled() {
         dependencies.append(contentsOf: [
-            .project(target: "VERACaptions", path: "VERACaptions")
+            .project(target: "VERACaptions", path: "VERACaptions"),
+            .project(target: "VERAVonageCaptionsPlugin", path: "VERAVonageCaptionsPlugin"),
         ])
     }
 

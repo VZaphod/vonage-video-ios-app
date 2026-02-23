@@ -70,6 +70,26 @@ public enum ArchivingState: Equatable {
 
 public typealias ArchiveID = String
 
+/// The high-level state of the captions feature.
+///
+/// Represents whether the current call has captions enabled or not.
+/// Use it to drive captions-related UI display.
+public enum CaptionsState: Equatable {
+    case enabled(CaptionsID)
+    case disabled
+}
+
+extension CaptionsState {
+    public var captionsEnabled: Bool {
+        if case .enabled = self {
+            return true
+        }
+        return false
+    }
+}
+
+public typealias CaptionsID = String
+
 /// Provides a publisher that emits participant state updates.
 ///
 /// Implementers emit ``ParticipantsState`` values as the call’s participant set
@@ -162,6 +182,23 @@ public protocol HoldeableCall: AnyObject {
     func setOnHold(_ isOnHold: Bool)
 }
 
+/// Controls the captions state
+///
+/// Execute enableCaptions to activate captions or disableCaptions to stop receiving caption updates
+public protocol CaptionsProvider: AnyObject {
+    /// Returns `true` when the captions are active
+    var areCaptionsEnabled: Bool { get }
+
+    /// A publisher that emits ``[CaptionItem]`` values, never fails.
+    var captionsPublisher: AnyPublisher<[CaptionItem], Never> { get }
+
+    /// Activates the captions
+    func enableCaptions() async
+
+    /// Deactivates the captions
+    func disableCaptions() async
+}
+
 /// A unified façade protocol for managing a video call.
 ///
 /// Conformers expose reactive state via publishers, connection lifecycle operations,
@@ -184,7 +221,8 @@ public protocol CallFacade: AnyObject,
     MediaToggleable,
     CallStatePublisherProvider,
     HoldeableCall,
-    CallArchivingPublisherProvider
+    CallArchivingPublisherProvider,
+    CaptionsProvider
 {}
 
 /// Errors that can occur during call operations.

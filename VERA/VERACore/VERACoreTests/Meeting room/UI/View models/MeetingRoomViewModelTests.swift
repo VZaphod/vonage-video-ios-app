@@ -461,9 +461,11 @@ struct MeetingRoomViewModelTests {
             checkMicrophoneAuthorizationStatusUseCase: checkMicrophoneAuthorizationStatusUseCase,
             checkCameraAuthorizationStatusUseCase: checkCameraAuthorizationStatusUseCase,
             currentCallParticipantsRepository: currentCallParticipantsRepository,
+            captionsStatusDataSource: NullCaptionsStatusDataSource(),
             appConfig: appConfig,
             meetingRoomNavigation: MockMeetingRoomNavigation(actionHandler, roomName: roomName),
-            getExternalButtons: { _ in [] })
+            getExternalButtons: { _ in [] }
+        )
     }
 
     // MARK: Helper
