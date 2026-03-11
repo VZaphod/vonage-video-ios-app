@@ -34,6 +34,11 @@ import VERAVonageCallKitPlugin
     import VERAVonageReactionsPlugin
 #endif
 
+#if SCREEN_SHARE_ENABLED
+    import VERAScreenShare
+    import VERAVonageScreenSharePlugin
+#endif
+
 #if SETTINGS_ENABLED
     import VERASettings
     import VERAVonageSettingsPlugin
@@ -45,6 +50,8 @@ final class DependencyContainer {
     lazy var httpClient: any HTTPClient = URLSessionHTTPClient()
 
     lazy var jsonDecoder = JSONDecoder()
+
+    lazy var userDefaults = UserDefaults(suiteName: EnvironmentConstants.veraAppGroupIdentifier) ?? .standard
 
     lazy var publisherFactory: any PublisherFactory = VonagePublisherFactory(
         checkCameraAuthorizationStatusUseCase: DefaultCheckCameraAuthorizationStatusUseCase(),
@@ -68,7 +75,7 @@ final class DependencyContainer {
     }()
 
     lazy var userRepository: any UserRepository = {
-        UserDefaultsUserRepository(userDefaults: .standard)
+        UserDefaultsUserRepository(userDefaults: userDefaults)
     }()
 
     lazy var landingPageFactory = LandingPageFactory()
@@ -139,6 +146,9 @@ final class DependencyContainer {
         #endif
         #if REACTIONS_ENABLED
             registry.registerPlugin(plugin: vonageReactionsPlugin)
+        #endif
+        #if SCREEN_SHARE_ENABLED
+            registry.registerPlugin(plugin: vonageScreenSharePlugin)
         #endif
         #if SETTINGS_ENABLED
             registry.registerPlugin(plugin: vonageSettingsPlugin)
@@ -249,6 +259,17 @@ final class DependencyContainer {
         lazy var reactionsFactory = ReactionsFactory(
             reactionsRepository: reactionsRepository,
             sendReactionUseCase: sendReactionUseCase)
+    #endif
+
+    // MARK: Screen share feature
+
+    #if SCREEN_SHARE_ENABLED
+
+        lazy var screenShareCredentialsRepository: ScreenShareCredentialsRepository =
+            UserDefaultsScreenShareCredentialsRepository(userDefaults: userDefaults)
+
+        lazy var vonageScreenSharePlugin = VonageScreenSharePlugin(
+            credentialsRepository: screenShareCredentialsRepository)
     #endif
 
     // MARK: Settings feature

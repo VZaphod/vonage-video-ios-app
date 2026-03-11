@@ -61,6 +61,8 @@ enum EnvironmentConstants {
     /// Base API URL for the application
     /// Generated from BASE_API_URL environment variable
     static let baseAPIURL: String = "$BASE_API_URL"
+
+    static let veraAppGroupIdentifier = "group.com.vonage.VERA"
     
     /// Computed URL property for convenience
     static var baseURL: URL {
@@ -84,6 +86,10 @@ cat > "$ENTITLEMENTS_FILE" << EOF
     <key>com.apple.developer.associated-domains</key>
     <array>
         <string>applinks:$DOMAIN</string>
+    </array>
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>group.com.vonage.VERA</string>
     </array>
 </dict>
 </plist>
