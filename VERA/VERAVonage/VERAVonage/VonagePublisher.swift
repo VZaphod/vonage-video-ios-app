@@ -28,7 +28,7 @@ import VERADomain
 /// UI and domain integration across the app.
 open class VonagePublisher: NSObject, VERAPublisher, OTPublisherKitDelegate {
     /// The underlying Vonage publisher.
-    let otPublisher: OTPublisher
+    public let otPublisher: OTPublisher
     /// The class that will create the transformer instances
     public let transformerFactory: VERATransformerFactory
 
@@ -69,7 +69,9 @@ open class VonagePublisher: NSObject, VERAPublisher, OTPublisherKitDelegate {
     /// Whether the publisher is currently on hold.
     @Published public private(set) var isOnHold: Bool = false
     /// Holds the current list of video transformers.
-    @Published public private(set) var videoTransformers: [VERATransformer] = []
+    @Published open private(set) var videoTransformers: [VERATransformer] = []
+    /// Holds the current list of audio transformers.
+    @Published open private(set) var audioTransformers: [VERATransformer] = []
 
     /// Convenience for `videoDimensions.aspectRatio`.
     public var aspectRatio: Double { videoDimensions.aspectRatio }
@@ -120,6 +122,14 @@ open class VonagePublisher: NSObject, VERAPublisher, OTPublisherKitDelegate {
         default:
             break
         }
+    }
+
+    /// Current scale behaviour.
+    ///
+    /// Maps Vonage’s view scale behavior to the app’s `VideoScaleBehavior` abstraction.
+    public var scaleBehavior: VideoScaleBehavior {
+        get { otPublisher.viewScaleBehavior == .fit ? .fit : .fill }
+        set { otPublisher.viewScaleBehavior = newValue == .fit ? .fit : .fill }
     }
 
     /// Creates a new publisher wrapper.
@@ -232,7 +242,7 @@ open class VonagePublisher: NSObject, VERAPublisher, OTPublisherKitDelegate {
     /// Cleans up Combine subscriptions and clears callbacks.
     ///
     /// Also replaces the participant’s `view` with an empty placeholder to release UI resources.
-    public func cleanUp() {
+    open func cleanUp() {
         participant = participant.withEmptyView
 
         cancellables.removeAll()
@@ -280,7 +290,7 @@ open class VonagePublisher: NSObject, VERAPublisher, OTPublisherKitDelegate {
     /// Vonage publisher method for setting video transformers
     ///
     /// Used to apply video effects to the publishing and rendering.
-    public func setVideoTransformers(_ transformers: [any VERATransformer]) {
+    open func setVideoTransformers(_ transformers: [any VERATransformer]) {
         videoTransformers = transformers
 
         updateVideoTransformers()
@@ -288,14 +298,14 @@ open class VonagePublisher: NSObject, VERAPublisher, OTPublisherKitDelegate {
 
     /// Vonage publisher method for removing a video transformer
     ///
-    /// Used to removed a previously added transformer, does nothing if the key doesn't match with any transformer.
+    /// Used to remove a previously added transformer, does nothing if the key doesn't match with any transformer.
     public func removeTransformer(_ key: String) {
         videoTransformers.removeAll { $0.key == key }
 
         updateVideoTransformers()
     }
 
-    private func updateVideoTransformers() {
+    open func updateVideoTransformers() {
         otPublisher.videoTransformers = videoTransformers.map(\.transformer)
         updateParticipant()
     }
@@ -308,5 +318,40 @@ open class VonagePublisher: NSObject, VERAPublisher, OTPublisherKitDelegate {
 
     func disableCaptions() {
         otPublisher.publishCaptions = false
+    }
+
+    // MARK: Audio transformers
+
+    /// Vonage publisher method for adding audio transformers
+    ///
+    /// Used to apply audio effects to the publishing and rendering.
+    public func addAudioTransformer(_ transformer: any VERATransformer) {
+        audioTransformers.removeAll { $0.key == transformer.key }
+        audioTransformers.append(transformer)
+
+        updateAudioTransformers()
+    }
+
+    /// Vonage publisher method for setting audio transformers
+    ///
+    /// Used to apply audio effects to the publishing and rendering.
+    open func setAudioTransformers(_ transformers: [any VERATransformer]) {
+        audioTransformers = transformers
+
+        updateAudioTransformers()
+    }
+
+    /// Vonage publisher method for removing an audio transformer
+    ///
+    /// Used to remove a previously added transformer, does nothing if the key doesn't match with any transformer.
+    public func removeAudioTransformer(_ key: String) {
+        audioTransformers.removeAll { $0.key == key }
+
+        updateAudioTransformers()
+    }
+
+    open func updateAudioTransformers() {
+        otPublisher.audioTransformers = audioTransformers.map(\.transformer)
+        updateParticipant()
     }
 }

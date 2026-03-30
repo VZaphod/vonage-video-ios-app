@@ -6,9 +6,6 @@ import SwiftUI
 import VERADomain
 
 struct AdaptiveGridLayout: View {
-    @Environment(\.horizontalSizeClass) var horizontalSizeClass
-    @Environment(\.verticalSizeClass) var verticalSizeClass
-
     let participants: [Participant]
     let activeSpeakerId: String?
 
@@ -274,16 +271,6 @@ struct GridLayout {
         self.spacing = spacing
         self.padding = padding
         self.customCellSize = customCellSize
-    }
-}
-
-extension View {
-    @ViewBuilder func `if`<Content: View>(_ condition: Bool, transform: (Self) -> Content) -> some View {
-        if condition {
-            transform(self)
-        } else {
-            self
-        }
     }
 }
 
