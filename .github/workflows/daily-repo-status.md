@@ -11,6 +11,9 @@ on:
   push:
     branches: [ main, develop ]
 
+secrets:
+  COPILOT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 permissions:
   contents: read
   issues: read
